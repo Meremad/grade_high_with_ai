@@ -1,0 +1,7 @@
+aiogram
+ollama
+langchain
+python-docx
+pypdf2
+pillow
+pytesseract
