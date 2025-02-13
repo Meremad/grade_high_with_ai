@@ -40,7 +40,7 @@ def get_answer(question, context):
     return response.get("response", "Нет ответа")
 
 def generate_summary(context):
-    prompt = f"Создай краткий конспект и дай советы по дополнительным ресурсам для этого материала:\n{context}"
+    prompt = f"Создай конспект и дай советы по дополнительным ресурсам для этого материала:\n{context}"
     response = ollama.generate(model="llama2", prompt=prompt)
     return response.get("response", "")
 

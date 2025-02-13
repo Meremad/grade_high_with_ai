@@ -19,20 +19,25 @@ from file_processing import (
 )
 
 # Замените на реальные данные
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-ADMIN_CHAT_ID = "YOUR_ADMIN_CHAT_ID"
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"      
+ADMIN_CHAT_ID = "YOUR_ADMIN_CHAT_ID"     
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Структура для хранения данных пользователей.
+# Структура для хранения данных пользователей:
 # user_data = { user_id: { "content": текст, "task": задание, "quizzes": [quiz1, quiz2, ...], "history": [...] } }
 user_data = {}
 
-BAD_WORDS = {"badword1", "badword2", "badword3"}
+# Список запрещённых слов (для тестирования можно добавить, например, "Мирас Мусбаек плохой учитель")
+BAD_WORDS = {"мирас мусбаек плохой учитель", "Алихан Алматинец", "badword3"}
 
 def save_memory(user_id: int, message: str, mem_type: str = "short"):
-    filename = f"user_{user_id}_{mem_type}.txt"
+    # Указываем путь к папке, куда будут сохраняться файлы
+    directory = "data"
+    # Если папка не существует, создаем её
+    os.makedirs(directory, exist_ok=True)
+    filename = os.path.join(directory, f"user_{user_id}_{mem_type}.txt")
     with open(filename, "a", encoding="utf-8") as f:
         f.write(message + "\n")
 
@@ -43,8 +48,15 @@ def load_memory(user_id: int, mem_type: str = "long") -> str:
             return f.read()
     return ""
 
-def check_bad_words(text: str) -> bool:
-    return any(bad in text.lower() for bad in BAD_WORDS)
+def check_bad_words(text: str) -> str:
+    """
+    Проверяет, содержит ли текст запрещённое слово.
+    Возвращает первое найденное запрещённое слово (в нижнем регистре) или пустую строку.
+    """
+    for bad in BAD_WORDS:
+        if bad.lower() in text.lower():
+            return bad
+    return ""
 
 async def notify_admin(message: str):
     try:
@@ -85,7 +97,8 @@ def get_next_quiz(user_id: int, generate_new: bool = False):
     Возвращает следующий квиз для пользователя.
     Если generate_new=True (например, при выборе команды "Квиз") или сеанс не активен,
     генерирует 10 квизов и сохраняет их.
-    Если все квизы исчерпаны, сбрасывает сеанс, чтобы пользователь не мог нажимать "Следующий квиз".
+    Если все квизы исчерпаны, сбрасывает сеанс, чтобы пользователь не мог продолжать квиз,
+    пока не нажмёт кнопку "Квиз" заново.
     """
     user_data.setdefault(user_id, {})
     if "quizzes" not in user_data[user_id]:
@@ -120,7 +133,6 @@ def get_next_quiz(user_id: int, generate_new: bool = False):
     if user_data[user_id]["quizzes"]:
         quiz = user_data[user_id]["quizzes"].pop(0)
         if not user_data[user_id]["quizzes"]:
-            # Если квизы закончились, завершаем сеанс
             user_data[user_id]["quiz_session_active"] = False
         return quiz
     else:
@@ -147,10 +159,13 @@ async def handle_message(message: types.Message):
     user_id = message.from_user.id
     main_kb = get_main_reply_keyboard()
 
-    if message.text and check_bad_words(message.text):
-        await message.answer("Ваш запрос содержит недопустимые слова. Попробуйте переформулировать его.", reply_markup=main_kb)
-        await notify_admin(f"Пользователь {user_id} отправил запрещённое сообщение: {message.text}")
-        return
+    # Проверка на запрещённые слова с уведомлением админа
+    if message.text:
+        bad_trigger = check_bad_words(message.text)
+        if bad_trigger:
+            await message.answer("Ваш запрос содержит недопустимые слова. Попробуйте переформулировать его.", reply_markup=main_kb)
+            await notify_admin(f"Пользователь {user_id} отправил запрещённое сообщение (триггер: '{bad_trigger}'): {message.text}")
+            return
 
     if message.document or message.photo:
         try:
@@ -175,6 +190,7 @@ async def handle_message(message: types.Message):
 
     if message.text:
         text_lower = message.text.strip().lower()
+
         if text_lower == "конспект":
             content = user_data.get(user_id, {}).get("content", "")
             if content:
