@@ -19,8 +19,8 @@ from file_processing import (
 )
 
 # Замените на реальные данные
-TOKEN = "7341266764:AAGn3UUqFIhGgqbwTEEPAOmSEzJ2vi0gd8s"      
-ADMIN_CHAT_ID = "814746013"     
+TOKEN = ""      
+ADMIN_CHAT_ID = ""     
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
